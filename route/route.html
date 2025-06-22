@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route Finder & POI Along Route</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        /* The Map fills the entire screen */
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Top Panel for Route Finder – inline layout */
+        #floating-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            z-index: 7;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #floating-panel input,
+        #floating-panel select,
+        #floating-panel button {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        #floating-panel button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #floating-panel button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Right Sidebar for Directions – hidden initially */
+        #sidebar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 6;
+            display: none;
+            transition: transform 0.3s ease;
+        }
+
+        /* Right Panel Toggle Button – small white button with black arrow */
+        #right-toggle {
+            position: absolute;
+            top: 5px;
+            right: 320px;
+            width: 20px;
+            height: 20px;
+            background: rgb(6, 192, 244);
+            border: 1px solid black;
+            color: black;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 7;
+        }
+
+        /* Left POI Panel – hidden initially */
+        #poi-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 7;
+            display: none;
+            transition: transform 0.3s ease;
+            background: url('https://lh3.googleusercontent.com/pw/AP1GczNRfbHAHUM9tTEPCM32LN9RFI8laH67i5ZD0lATJXlbXVPfeRSLi-SR44_wCeiG1awflsXNu9O9DwiuPvXRzReNODj2Ln3DBb3ci91hKoqmzW4mV0Xk5CIfihW-dJs8_ojNWWtpGikOwNo6RtA5jnna=w515-h913-s-no-gm?authuser=0') no-repeat center center fixed;
+            background-size: cover;
+            overflow-y: auto;
+        }
+
+        /* Left Panel Toggle Button – small white button with black arrow */
+        #left-toggle {
+            position: absolute;
+            top: 5px;
+            left: 320px;
+            width: 25px;
+            height: 25px;
+            background: rgb(6, 192, 244);
+            border: 1px solid black;
+            color: black;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 7;
+        }
+
+        /* POI Panel content styling */
+        #poi-panel header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #poi-panel header h1 {
+            font-size: 24px;
+            color: #007bff;
+        }
+
+        #poi-controls {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #poi-controls select,
+        #poi-controls button {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        #poi-controls select:focus {
+            border-color: #007bff;
+        }
+
+        #poi-controls button {
+            background: #007bff;
+            color: white;
+            border: none;
+        }
+
+        #poi-controls button:hover {
+            background: #0056b3;
+        }
+
+        /* POI Recommendations List */
+        #poi-recommendations {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        #poi-recommendations h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        #poi-results {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .poi-result-item {
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .poi-result-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .poi-result-name {
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+
+        .poi-result-rating {
+            font-size: 14px;
+            color: #777;
+        }
+
+        .gmaps-link {
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 14px;
+            color: #f9f9f9;
+            text-decoration: none;
+        }
+
+
+        /* Current Location Button (bottom-right) */
+        #current-location-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 7;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            transition: background 0.3s ease;
+        }
+
+        #current-location-btn:hover {
+            background: #0056b3;
+        }
+
+        @media (max-width: 768px) {
+            #floating-panel {
+                flex-direction: column;
+                width: 90%;
+                left: 5%;
+                transform: none;
+            }
+
+            #sidebar {
+                width: 100%;
+                height: 200px;
+                top: auto;
+                bottom: 0;
+            }
+
+            #left-toggle,
+            #right-toggle,
+            #satellite-toggle {
+                display: none;
+            }
+
+            #poi-panel {
+                width: 100%;
+                left: 5%;
+                top: auto;
+                bottom: 220px;
+            }
+        }
+
+        .error-message {
+            color: #cc0000;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top Floating Panel for Route Finder -->
+    <div id="floating-panel">
+        <input type="text" id="from" placeholder="From..." />
+        <input type="text" id="to" placeholder="To..." />
+        <select id="mode">
+            <option value="DRIVING">Driving</option>
+            <option value="WALKING">Walking</option>
+            <option value="BICYCLING">Bicycling</option>
+            <option value="TRANSIT">Transit</option>
+        </select>
+        <button id="route-search">Search Route</button>
+    </div>
+    <!-- Satellite Map Toggle Button -->
+    <div id="satellite-toggle">Satellite</div>
+    <!-- Right Sidebar for Directions (hidden initially) -->
+    <div id="sidebar"></div>
+    <!-- Right Toggle Button -->
+    <div id="right-toggle">&#9664;</div>
+    <!-- Left POI Panel (hidden initially) -->
+    <div id="poi-panel">
+        <header>
+            <h1>Travel Guide</h1>
+        </header>
+        <div id="poi-controls">
+            <select id="poi-menu">
+                <option value="restaurant">Restaurants</option>
+                <option value="tourist_attraction">Attractions</option>
+                <option value="hospital">Hospitals</option>
+                <option value="car_repair">Mechanics</option>
+            </select>
+            <select id="poi-rating">
+                <option value="all">All</option>
+                <option value="4.0">Above 4.0</option>
+                <option value="3.0">Above 3.0</option>
+                <option value="2.0">Above 2.0</option>
+            </select>
+            <button id="poi-search">Search</button>
+            <button id="poi-clear">Clear</button>
+        </div>
+        <div id="poi-recommendations">
+            <h3>Search Recommendations</h3>
+            <ul id="poi-results"></ul>
+        </div>
+    </div>
+    <!-- Left Toggle Button -->
+    <div id="left-toggle">&#9654;</div>
+    <!-- Current Location Button -->
+    <button id="current-location-btn">Current Location</button>
+    <!-- The Map -->
+    <div id="map"></div>
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let autocompleteFrom;
+        let autocompleteTo;
+        let placesService;
+        let routePolyline; // decoded polyline points
+        let poiMarkers = []; // array for POI markers
+        let globalRoute; // holds current route result
+        let currentLocationMarker; // fixed-size marker for current location
+        let isSatellite = false; // flag for satellite view
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: {
+                    lat: 37.7749,
+                    lng: -122.4194
+                },
+                zoom: 7,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                draggable: true
+            });
+            directionsRenderer.setMap(map);
+            directionsRenderer.setPanel(document.getElementById("sidebar"));
+
+            autocompleteFrom = new google.maps.places.Autocomplete(document.getElementById("from"), {
+                types: ["geocode"]
+            });
+            autocompleteTo = new google.maps.places.Autocomplete(document.getElementById("to"), {
+                types: ["geocode"]
+            });
+            placesService = new google.maps.places.PlacesService(map);
+
+            document.getElementById("route-search").addEventListener("click", calculateRoute);
+            document.getElementById("mode").addEventListener("change", () => {
+                const from = document.getElementById("from").value;
+                const to = document.getElementById("to").value;
+                if (from && to) calculateRoute();
+            });
+            document.getElementById("poi-search").addEventListener("click", searchPOIAlongRoute);
+            document.getElementById("poi-clear").addEventListener("click", clearAllPOI);
+            document.getElementById("current-location-btn").addEventListener("click", zoomToCurrentLocation);
+            document.getElementById("satellite-toggle").addEventListener("click", toggleSatellite);
+
+            // Toggle for Left POI Panel – small button at its top edge
+            document.getElementById("left-toggle").addEventListener("click", () => {
+                const poiPanel = document.getElementById("poi-panel");
+                if (poiPanel.style.display === "block") {
+                    poiPanel.style.display = "none";
+                    document.getElementById("left-toggle").innerHTML = "&#9668;"; // arrow pointing left
+                    document.getElementById("left-toggle").style.left = "0";
+                } else {
+                    poiPanel.style.display = "block";
+                    document.getElementById("left-toggle").innerHTML = "&#9654;"; // arrow pointing right
+                    document.getElementById("left-toggle").style.left = "320px";
+                }
+            });
+            // Toggle for Right Sidebar – small button at its top edge
+            document.getElementById("right-toggle").addEventListener("click", () => {
+                const sidebar = document.getElementById("sidebar");
+                if (sidebar.style.display === "block") {
+                    sidebar.style.display = "none";
+                    document.getElementById("right-toggle").innerHTML = "&#9658;"; // arrow pointing right
+                    document.getElementById("right-toggle").style.right = "0";
+                } else {
+                    sidebar.style.display = "block";
+                    document.getElementById("right-toggle").innerHTML = "&#9664;"; // arrow pointing left
+                    document.getElementById("right-toggle").style.right = "320px";
+                }
+            });
+
+            // Get current location and place a fixed-size blue circular marker.
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const pos = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        map.setCenter(pos);
+                        map.setZoom(13);
+                        currentLocationMarker = new google.maps.Marker({
+                            map: map,
+                            position: pos,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#4285F4",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2,
+                            },
+                        });
+                    },
+                    () => {
+                        console.log("Geolocation service failed.");
+                    }
+                );
+            } else {
+                console.log("Browser doesn't support geolocation.");
+            }
+        }
+
+        // Toggle satellite view on/off.
+        function toggleSatellite() {
+            isSatellite = !isSatellite;
+            map.setMapTypeId(isSatellite ? google.maps.MapTypeId.SATELLITE : google.maps.MapTypeId.ROADMAP);
+            document.getElementById("satellite-toggle").innerText = isSatellite ? "Roadmap" : "Satellite";
+        }
+
+        // Calculate route using top panel controls.
+        function calculateRoute() {
+            const from = document.getElementById("from").value;
+            const to = document.getElementById("to").value;
+            const mode = document.getElementById("mode").value;
+            const sidebar = document.getElementById("sidebar");
+
+            if (!from || !to) {
+                alert("Please enter both starting point and destination.");
+                return;
+            }
+
+            directionsService.route({
+                    origin: from,
+                    destination: to,
+                    travelMode: google.maps.TravelMode[mode],
+                },
+                (response, status) => {
+                    if (status === "OK" && response.routes.length > 0) {
+                        sidebar.innerHTML = "";
+                        directionsRenderer.setDirections(response);
+                        sidebar.style.display = "block";
+                        document.getElementById("right-toggle").style.display = "block";
+                        document.getElementById("poi-panel").style.display = "block";
+                        document.getElementById("left-toggle").style.display = "block";
+                        globalRoute = response;
+                        // Decode polyline for route points.
+                        const overviewPolyline = response.routes[0].overview_polyline;
+                        routePolyline = google.maps.geometry.encoding.decodePath(overviewPolyline);
+                    } else {
+                        sidebar.style.display = "block";
+                        sidebar.innerHTML = `<p class="error-message">❌ No results found.<br>Please try different locations or travel mode.</p>`;
+                        globalRoute = null;
+                        routePolyline = null;
+                    }
+                }
+            );
+        }
+
+        // Search for POIs along the route.
+        function searchPOIAlongRoute() {
+            if (!globalRoute || !routePolyline) {
+                alert("Please calculate a route first using the Route Finder.");
+                return;
+            }
+            const selectedType = document.getElementById("poi-menu").value;
+            const ratingFilter = document.getElementById("poi-rating").value;
+            const resultsList = document.getElementById("poi-results");
+            resultsList.innerHTML = "";
+            clearPoiMarkers();
+
+            const sampleCount = 10;
+            const points = [];
+            const totalPoints = routePolyline.length;
+            const interval = Math.max(1, Math.floor(totalPoints / sampleCount));
+            for (let i = 0; i < totalPoints; i += interval) {
+                points.push(routePolyline[i]);
+            }
+            if (points[points.length - 1] !== routePolyline[totalPoints - 1]) {
+                points.push(routePolyline[totalPoints - 1]);
+            }
+
+            const allPOIs = {};
+            let searchesCompleted = 0;
+            points.forEach((point) => {
+                const request = {
+                    location: point,
+                    radius: 2000,
+                    type: selectedType,
+                };
+                placesService.nearbySearch(request, (results, status) => {
+                    searchesCompleted++;
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                        results.forEach((place) => {
+                            if (ratingFilter !== "all" && (!place.rating || place.rating < parseFloat(ratingFilter))) {
+                                return;
+                            }
+                            if (!allPOIs[place.place_id]) {
+                                allPOIs[place.place_id] = place;
+                            }
+                        });
+                    }
+                    if (searchesCompleted === points.length) {
+                        const uniqueResults = Object.values(allPOIs);
+                        uniqueResults.sort((a, b) => {
+                            const aScore = (a.rating || 0) * (a.user_ratings_total || 0);
+                            const bScore = (b.rating || 0) * (b.user_ratings_total || 0);
+                            return bScore - aScore;
+                        });
+                        uniqueResults.forEach((place) => {
+                            addPoiRecommendation(place);
+                            addPoiMarker(place);
+                        });
+                    }
+                });
+            });
+        }
+
+        // Add a POI recommendation item – clicking it will pan to the location and open its marker info without changing zoom.
+        function addPoiRecommendation(place) {
+            const li = document.createElement("li");
+            li.className = "poi-result-item";
+            let photoUrl = place.photos ?
+                place.photos[0].getUrl({
+                    maxWidth: 400
+                }) :
+                "https://via.placeholder.com/400x200?text=No+Image";
+            li.innerHTML = `
+          <img src="${photoUrl}" alt="${place.name}" />
+          <div class="poi-result-name">${place.name}</div>
+          <div class="poi-result-rating">Rating: ${place.rating || 'N/A'} (${place.user_ratings_total || 0} reviews)</div>
+          <a class="gmaps-link" href="https://www.google.com/maps/place/?q=place_id:${place.place_id}" target="_blank">Open in Google Maps</a>
+        `;
+            li.addEventListener("click", () => {
+                // Instead of zooming, simply pan to the location and open the marker info window.
+                map.panTo(place.geometry.location);
+                if (poiMarkerMap[place.place_id]) {
+                    poiMarkerMap[place.place_id].infowindow.open(map, poiMarkerMap[place.place_id].marker);
+                }
+            });
+            document.getElementById("poi-results").appendChild(li);
+        }
+
+        // Add a POI marker to the map. Now with mouseover and mouseout events for hover info.
+        const poiMarkerMap = {};
+
+        function addPoiMarker(place) {
+            let photoUrl = place.photos ?
+                place.photos[0].getUrl({
+                    maxWidth: 200
+                }) :
+                "https://via.placeholder.com/200x100?text=No+Image";
+            const marker = new google.maps.Marker({
+                map: map,
+                position: place.geometry.location,
+                title: place.name,
+            });
+            const infowindow = new google.maps.InfoWindow({
+                content: `
+            <div style="max-width:200px;">
+              <img src="${photoUrl}" alt="${place.name}" style="width:100%; height:auto; border-radius:8px;"/>
+              <strong>${place.name}</strong><br>
+              Rating: ${place.rating || 'N/A'} (${place.user_ratings_total || 0} reviews)
+            </div>
+          `,
+            });
+            // When the user hovers over the marker, show the info window.
+            marker.addListener("mouseover", () => {
+                infowindow.open(map, marker);
+            });
+            marker.addListener("mouseout", () => {
+                infowindow.close();
+            });
+            // Also add a click event if needed.
+            marker.addListener("click", () => {
+                infowindow.open(map, marker);
+            });
+            poiMarkerMap[place.place_id] = {
+                marker,
+                infowindow
+            };
+            poiMarkers.push(marker);
+        }
+
+        function clearPoiMarkers() {
+            poiMarkers.forEach((marker) => marker.setMap(null));
+            poiMarkers = [];
+        }
+
+        function clearAllPOI() {
+            document.getElementById("poi-results").innerHTML = "";
+            clearPoiMarkers();
+        }
+
+        function zoomToCurrentLocation() {
+            if (currentLocationMarker) {
+                map.setCenter(currentLocationMarker.getPosition());
+                map.setZoom(15);
+            }
+        }
+        window.initMap = initMap;
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAsjqV6vzVGJ-j_Qm7KjrmbBMCRDe-wNjw&libraries=places,geometry&callback=initMap" async defer></script>
+</body>
+
+</html>
